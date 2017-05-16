@@ -372,6 +372,7 @@ switch($mode) {
                         <th><?php _e('ID', 'wp-polls'); ?></th>
                         <th><?php _e('Question', 'wp-polls'); ?></th>
                         <th><?php _e('Total Voters', 'wp-polls'); ?></th>
+						<th><?php _e('Total Attendance', 'wp-polls'); ?></th>
                         <th><?php _e('Start Date/Time', 'wp-polls'); ?></th>
                         <th><?php _e('End Date/Time', 'wp-polls'); ?></th>
                         <th><?php _e('Status', 'wp-polls'); ?></th>
@@ -396,6 +397,13 @@ switch($mode) {
                                 $poll_date = mysql2date(sprintf(__('%s @ %s', 'wp-polls'), get_option('date_format'), get_option('time_format')), gmdate('Y-m-d H:i:s', $poll->pollq_timestamp));
                                 $poll_totalvotes = (int) $poll->pollq_totalvotes;
                                 $poll_totalvoters = (int) $poll->pollq_totalvoters;
+								// krezac start calculate total attendance by ratio
+								$poll_total_ratio = 0;
+								$poll_total_ratio_query = $wpdb->get_row( $wpdb->prepare( "SELECT SUM(uu.multiplier*u.ratio) as attended_ratio from wp_pollsip pip INNER JOIN wp_svj_unit_to_user uu on pip.pollip_userid=uu.id AND uu.active=1 INNER JOIN wp_svj_units u ON uu.unit_id=u.id WHERE pollip_qid=%d", $poll_id ) );
+								if ($poll_total_ratio_query) {
+									$poll_total_ratio = doubleval($poll_total_ratio_query->attended_ratio);
+								}
+								// krezac end
                                 $poll_active = (int) $poll->pollq_active;
                                 $poll_expiry = trim($poll->pollq_expiry);
                                 if(empty($poll_expiry)) {

@@ -45,6 +45,8 @@ global $wpdb;
 $wpdb->pollsq   = $wpdb->prefix.'pollsq';
 $wpdb->pollsa   = $wpdb->prefix.'pollsa';
 $wpdb->pollsip  = $wpdb->prefix.'pollsip';
+$wpdb->svj_units   = $wpdb->prefix.'svj_units';
+$wpdb->svj_unit_to_user   = $wpdb->prefix.'svj_unit_to_user';
 
 
 ### Function: Poll Administration Menu
@@ -56,6 +58,8 @@ function poll_menu() {
 	add_submenu_page( 'wp-polls/polls-manager.php', __( 'Add Poll', 'wp-polls'), __( 'Add Poll', 'wp-polls' ), 'manage_polls', 'wp-polls/polls-add.php' );
 	add_submenu_page( 'wp-polls/polls-manager.php', __( 'Poll Options', 'wp-polls'), __( 'Poll Options', 'wp-polls' ), 'manage_polls', 'wp-polls/polls-options.php' );
 	add_submenu_page( 'wp-polls/polls-manager.php', __( 'Poll Templates', 'wp-polls'), __( 'Poll Templates', 'wp-polls' ), 'manage_polls', 'wp-polls/polls-templates.php' );
+	add_submenu_page( 'wp-polls/polls-manager.php', __( 'SVJ Review Ownership', 'wp-polls' ), __( 'SVJ Review Ownership', 'wp-polls' ), 'manage_polls', 'wp-polls/svj-ownership-review.php' );
+
 }
 
 
@@ -412,6 +416,17 @@ function check_voted_username($poll_id) {
 add_filter('poll_template_voteheader_markup', 'poll_template_vote_markup', 10, 3);
 add_filter('poll_template_votebody_markup', 'poll_template_vote_markup', 10, 3);
 add_filter('poll_template_votefooter_markup', 'poll_template_vote_markup', 10, 3);
+add_filter('poll_template_svj_ownership_markup', 'poll_template_svj_ownership_markup', 10, 2);
+
+function poll_template_svj_ownership_markup($template, $variables) {
+
+    foreach($variables as $placeholder => $value) {
+        $template = str_replace($placeholder, $value, $template);
+    }
+
+    return $template;
+}
+
 
 function poll_template_vote_markup($template, $poll_db_object, $variables) {
 
@@ -465,7 +480,7 @@ function display_pollvote($poll_id, $display_loading = true) {
 	if($poll_question && $poll_answers) {
 		// Display Poll Voting Form
 		$temp_pollvote .= "<div id=\"polls-$poll_question_id\" class=\"wp-polls\">\n";
-		$temp_pollvote .= "\t<form id=\"polls_form_$poll_question_id\" class=\"wp-polls-form\" action=\"" . sanitize_text_field( _SERVER['SCRIPT_NAME'] ) ."\" method=\"post\">\n";
+		$temp_pollvote .= "\t<form id=\"polls_form_$poll_question_id\" class=\"wp-polls-form\" action=\"" . sanitize_text_field( $_SERVER['SCRIPT_NAME'] ) ."\" method=\"post\">\n";
 		$temp_pollvote .= "\t\t<p style=\"display: none;\"><input type=\"hidden\" id=\"poll_{$poll_question_id}_nonce\" name=\"wp-polls-nonce\" value=\"".wp_create_nonce('poll_'.$poll_question_id.'-nonce')."\" /></p>\n";
 		$temp_pollvote .= "\t\t<p style=\"display: none;\"><input type=\"hidden\" name=\"poll_id\" value=\"$poll_question_id\" /></p>\n";
 		if($poll_multiple_ans > 0) {
@@ -1701,6 +1716,14 @@ add_action('widgets_init', 'widget_polls_init');
 function widget_polls_init() {
 	polls_textdomain();
 	register_widget('WP_Widget_Polls');
+}
+
+### Function: Init WP-Polls-SVJ-Ownership Widget
+add_action('widgets_init', 'widget_polls_svj_ownership_init');
+function widget_polls_svj_ownership_init() {
+	polls_textdomain();
+	include_once( 'svj-ownership-widget.php' );
+	register_widget('WP_Widget_Polls_SVJ_Ownership');
 }
 
 if( ! function_exists( 'removeslashes' ) ) {
