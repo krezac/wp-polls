@@ -443,6 +443,7 @@ switch($mode) {
                                 }
                                 echo wp_kses_post( $poll_question )."</td>\n";
                                 echo '<td>'.number_format_i18n($poll_totalvoters)."</td>\n";
+                                echo '<td>'.number_format_i18n($poll_total_ratio, 2)."%</td>\n";
                                 echo "<td>$poll_date</td>\n";
                                 echo "<td>$poll_expiry_text</td>\n";
                                 echo '<td>';
