@@ -11,6 +11,8 @@ $mode       = ( isset( $_GET['mode'] ) ? sanitize_key( trim( $_GET['mode'] ) ) :
 $poll_id    = ( isset( $_GET['id'] ) ? (int) sanitize_key( $_GET['id'] ) : 0 );
 $poll_aid   = ( isset( $_GET['aid'] ) ? (int) sanitize_key( $_GET['aid'] ) : 0 );
 
+include_once( 'svj-helpers.php' );
+
 ### Form Processing
 if(!empty($_POST['do'])) {
     // Decide What To Do
@@ -398,11 +400,7 @@ switch($mode) {
                                 $poll_totalvotes = (int) $poll->pollq_totalvotes;
                                 $poll_totalvoters = (int) $poll->pollq_totalvoters;
 								// krezac start calculate total attendance by ratio
-								$poll_total_ratio = 0;
-								$poll_total_ratio_query = $wpdb->get_row( $wpdb->prepare( "SELECT SUM(uu.multiplier*u.ratio) as attended_ratio from wp_pollsip pip INNER JOIN wp_svj_unit_to_user uu on pip.pollip_userid=uu.id AND uu.active=1 INNER JOIN wp_svj_units u ON uu.unit_id=u.id WHERE pollip_qid=%d", $poll_id ) );
-								if ($poll_total_ratio_query) {
-									$poll_total_ratio = doubleval($poll_total_ratio_query->attended_ratio);
-								}
+								$poll_total_ratio = get_total_voters_ratio($poll_id);;
 								// krezac end
                                 $poll_active = (int) $poll->pollq_active;
                                 $poll_expiry = trim($poll->pollq_expiry);

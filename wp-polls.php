@@ -62,6 +62,7 @@ function poll_menu() {
 
 }
 
+include_once( 'svj-helpers.php' );
 
 ### Function: Get Poll
 function get_poll($temp_poll_id = 0, $display = true) {
@@ -452,6 +453,7 @@ function display_pollvote($poll_id, $display_loading = true) {
 	$poll_question_id = (int) $poll_question->pollq_id;
 	$poll_question_totalvotes = (int) $poll_question->pollq_totalvotes;
 	$poll_question_totalvoters = (int) $poll_question->pollq_totalvoters;
+	$poll_question_totalvoters_ratio = number_format_i18n(get_total_voters_ratio($poll_id), 2);
 	$poll_start_date = mysql2date(sprintf(__('%s @ %s', 'wp-polls'), get_option('date_format'), get_option('time_format')), gmdate('Y-m-d H:i:s', $poll_question->pollq_timestamp));
 	$poll_expiry = trim($poll_question->pollq_expiry);
 	if(empty($poll_expiry)) {
@@ -468,6 +470,7 @@ function display_pollvote($poll_id, $display_loading = true) {
 		'%POLL_ID%' => $poll_question_id,
 		'%POLL_TOTALVOTES%' => $poll_question_totalvotes,
 		'%POLL_TOTALVOTERS%' => $poll_question_totalvoters,
+		'%POLL_TOTALVOTERS_SVJ_RATIO%' => $poll_question_totalvoters_ratio,
 		'%POLL_START_DATE%' => $poll_start_date,
 		'%POLL_END_DATE%' => $poll_end_date,
 		'%POLL_MULTIPLE_ANS_MAX%' => $poll_multiple_ans > 0 ? $poll_multiple_ans : 1
@@ -494,6 +497,7 @@ function display_pollvote($poll_id, $display_loading = true) {
 			$poll_answer_text = wp_kses_post( removeslashes( $poll_answer->polla_answers ) );
 			$poll_answer_votes = (int) $poll_answer->polla_votes;
 			$poll_answer_percentage = $poll_question_totalvotes > 0 ? round((($poll_answer_votes/$poll_question_totalvotes)*100)) : 0;
+			$poll_answer_svj_percentage = number_format_i18n(get_answer_svj_percentage($poll_question_id, $poll_answer->polla_aid),2);
 			$template_answer = removeslashes(get_option('poll_template_votebody'));
 
 			$template_answer = apply_filters('poll_template_votebody_markup', $template_answer, $poll_answer, array(
@@ -502,6 +506,7 @@ function display_pollvote($poll_id, $display_loading = true) {
 				'%POLL_ANSWER%' => $poll_answer_text,
 				'%POLL_ANSWER_VOTES%' => number_format_i18n($poll_answer_votes),
 				'%POLL_ANSWER_PERCENTAGE%' => $poll_answer_percentage,
+				'%POLL_ANSWER_SVJ_PERCENTAGE%' => $poll_answer_svj_percentage,
 				"%POLL_CHECKBOX_RADIO%" => $poll_multiple_ans > 0 ? 'checkbox' : 'radio'
 			));
 
@@ -576,6 +581,9 @@ function display_pollresult($poll_id, $user_voted = '', $display_loading = true)
 	$poll_question_id = (int) $poll_question->pollq_id;
 	$poll_question_totalvotes = (int) $poll_question->pollq_totalvotes;
 	$poll_question_totalvoters = (int) $poll_question->pollq_totalvoters;
+	$poll_question_totalvoters_ratio_raw = get_total_voters_ratio($poll_id); // used for calculation
+	$poll_question_totalvoters_ratio = number_format_i18n($poll_question_totalvoters_ratio_raw, 2);
+	
 	$poll_question_active = (int) $poll_question->pollq_active;
 	$poll_start_date = mysql2date(sprintf(__('%s @ %s', 'wp-polls'), get_option('date_format'), get_option('time_format')), gmdate('Y-m-d H:i:s', $poll_question->pollq_timestamp));
 	$poll_expiry = trim($poll_question->pollq_expiry);
@@ -590,6 +598,7 @@ function display_pollresult($poll_id, $user_voted = '', $display_loading = true)
 	$template_question = str_replace("%POLL_ID%", $poll_question_id, $template_question);
 	$template_question = str_replace("%POLL_TOTALVOTES%", $poll_question_totalvotes, $template_question);
 	$template_question = str_replace("%POLL_TOTALVOTERS%", $poll_question_totalvoters, $template_question);
+	$template_question = str_replace("%POLL_TOTALVOTERS_SVJ_RATIO%", $poll_question_totalvoters_ratio, $template_question);
 	$template_question = str_replace("%POLL_START_DATE%", $poll_start_date, $template_question);
 	$template_question = str_replace("%POLL_END_DATE%", $poll_end_date, $template_question);
 	if($poll_multiple_ans > 0) {
@@ -621,19 +630,34 @@ function display_pollresult($poll_id, $user_voted = '', $display_loading = true)
 			if(!$poll_totalvotes_zero) {
 				if($poll_answer_votes > 0) {
 					$poll_answer_percentage = round((($poll_answer_votes/$poll_question_totalvotes)*100));
-					$poll_answer_imagewidth = round($poll_answer_percentage);
+					$poll_answer_svj_percentage_raw = get_answer_svj_percentage($poll_question_id, $poll_answer->polla_aid); // do not format, it's used for calculations
+					$poll_answer_imagewidth = round($poll_answer_percentage);					
+					$poll_answer_svj_percentage = number_format_i18n($poll_answer_svj_percentage_raw, 2);					
+					$poll_answer_svj_percentage_normalized = 0;
+					if($poll_question_totalvoters_ratio_raw != 0) {
+						$poll_answer_svj_percentage_normalized = round(100*$poll_answer_svj_percentage_raw/$poll_question_totalvoters_ratio_raw);
+					}
+					$poll_answer_svj_imagewidth = $poll_answer_svj_percentage_normalized ;
 					if($poll_answer_imagewidth === 100) {
 						$poll_answer_imagewidth = 99;
 					}
+					if($poll_answer_svj_imagewidth === 100) {
+						$poll_answer_svj_imagewidth = 99;
+					}
 				} else {
 					$poll_answer_percentage = 0;
+					$poll_answer_svj_percentage = 0;
 					$poll_answer_imagewidth = 1;
+					$poll_answer_svj_imagewidth = 1;
 				}
 			} else {
 				$poll_answer_percentage = 0;
+				$poll_answer_svj_percentage = 0;
 				$poll_answer_imagewidth = 1;
+				$poll_answer_svj_imagewidth = 1;
 			}
 			// Make Sure That Total Percentage Is 100% By Adding A Buffer To The Last Poll Answer
+			// TODO SVJ
 			$round_percentage = apply_filters( 'wp_polls_round_percentage', false );
 			if( $round_percentage ) {
 				if ( $poll_multiple_ans === 0 ) {
@@ -658,7 +682,10 @@ function display_pollresult($poll_id, $user_voted = '', $display_loading = true)
 				$template_answer = str_replace("%POLL_ANSWER_TEXT%", htmlspecialchars(strip_tags($poll_answer_text)), $template_answer);
 				$template_answer = str_replace("%POLL_ANSWER_VOTES%", number_format_i18n($poll_answer_votes), $template_answer);
 				$template_answer = str_replace("%POLL_ANSWER_PERCENTAGE%", $poll_answer_percentage, $template_answer);
+				$template_answer = str_replace("%POLL_ANSWER_SVJ_PERCENTAGE%", $poll_answer_svj_percentage, $template_answer);
+				$template_answer = str_replace("%POLL_ANSWER_SVJ_PERCENTAGE_NORMALIZED%", $poll_answer_svj_percentage_normalized, $template_answer);
 				$template_answer = str_replace("%POLL_ANSWER_IMAGEWIDTH%", $poll_answer_imagewidth, $template_answer);
+				$template_answer = str_replace("%POLL_ANSWER_SVJ_IMAGEWIDTH%", $poll_answer_svj_imagewidth, $template_answer);
 				// Print Out Results Body Template
 				$temp_pollresult .= "\t\t$template_answer\n";
 			} else {
@@ -670,7 +697,10 @@ function display_pollresult($poll_id, $user_voted = '', $display_loading = true)
 				$template_answer = str_replace("%POLL_ANSWER_TEXT%", htmlspecialchars(strip_tags($poll_answer_text)), $template_answer);
 				$template_answer = str_replace("%POLL_ANSWER_VOTES%", number_format_i18n($poll_answer_votes), $template_answer);
 				$template_answer = str_replace("%POLL_ANSWER_PERCENTAGE%", $poll_answer_percentage, $template_answer);
+				$template_answer = str_replace("%POLL_ANSWER_SVJ_PERCENTAGE%", $poll_answer_svj_percentage, $template_answer);
+				$template_answer = str_replace("%POLL_ANSWER_SVJ_PERCENTAGE_NORMALIZED%", $poll_answer_svj_percentage_normalized, $template_answer);
 				$template_answer = str_replace("%POLL_ANSWER_IMAGEWIDTH%", $poll_answer_imagewidth, $template_answer);
+				$template_answer = str_replace("%POLL_ANSWER_SVJ_IMAGEWIDTH%", $poll_answer_svj_imagewidth, $template_answer);
 				// Print Out Results Body Template
 				$temp_pollresult .= "\t\t$template_answer\n";
 			}
@@ -701,6 +731,7 @@ function display_pollresult($poll_id, $user_voted = '', $display_loading = true)
 		$template_footer = str_replace("%POLL_ID%", $poll_question_id, $template_footer);
 		$template_footer = str_replace("%POLL_TOTALVOTES%", number_format_i18n($poll_question_totalvotes), $template_footer);
 		$template_footer = str_replace("%POLL_TOTALVOTERS%", number_format_i18n($poll_question_totalvoters), $template_footer);
+		$template_footer = str_replace("%POLL_TOTALVOTERS_SVJ_RATIO%", $poll_question_totalvoters_ratio, $template_footer);
 		$template_footer = str_replace("%POLL_MOST_ANSWER%", $poll_most_answer, $template_footer);
 		$template_footer = str_replace("%POLL_MOST_VOTES%", number_format_i18n($poll_most_votes), $template_footer);
 		$template_footer = str_replace("%POLL_MOST_PERCENTAGE%", $poll_most_percentage, $template_footer);
@@ -1005,11 +1036,15 @@ function polls_archive() {
 		// Archive Poll Header
 		$template_archive_header = removeslashes(get_option('poll_template_pollarchiveheader'));
 		// Poll Question Variables
+		$poll_question_totalvoters_ratio_raw = get_total_voters_ratio((int)$polls_question['id']);
+		$poll_question_totalvoters_ratio = number_format_i18n($poll_question_totalvoters_ratio_raw, 2);
+		// replacing in template
 		$template_question = removeslashes(get_option('poll_template_resultheader'));
 		$template_question = str_replace("%POLL_QUESTION%", $polls_question['question'], $template_question);
 		$template_question = str_replace("%POLL_ID%", $polls_question['id'], $template_question);
 		$template_question = str_replace("%POLL_TOTALVOTES%", number_format_i18n($polls_question['totalvotes']), $template_question);
 		$template_question = str_replace("%POLL_TOTALVOTERS%", number_format_i18n($polls_question['totalvoters']), $template_question);
+		$template_question = str_replace("%POLL_TOTALVOTERS_SVJ_RATIO%", $poll_question_totalvoters_ratio, $template_question);
 		$template_question = str_replace("%POLL_START_DATE%", $poll_start_date, $template_question);
 		$template_question = str_replace("%POLL_END_DATE%", $poll_end_date, $template_question);
 		if($polls_question['multiple'] > 0) {
@@ -1048,6 +1083,14 @@ function polls_archive() {
 				}
 			}
 			$polls_answer['answers'] = wp_kses_post( $polls_answer['answers'] );
+			// fetch svj stuff
+			$poll_answer_svj_percentage_raw = get_answer_svj_percentage((int)$polls_question['id'], (int)$polls_answer['aid']); // do not format, it's used for calculations
+			$poll_answer_svj_percentage = number_format_i18n($poll_answer_svj_percentage_raw, 2);
+			$poll_answer_svj_percentage_normalized = 0;
+			if($poll_question_totalvoters_ratio_raw != 0) {
+				$poll_answer_svj_percentage_normalized = round(100*$poll_answer_svj_percentage_raw/$poll_question_totalvoters_ratio_raw);
+			}
+			$poll_answer_svj_imagewidth = $poll_answer_svj_percentage_normalized ;
 			// Let User See What Options They Voted
 			if(isset( $polls_ips[$polls_question['id']] ) && in_array( $polls_answer['aid'], check_voted_multiple( $polls_question['id'], $polls_ips[$polls_question['id']] ), true ) ) {
 				// Results Body Variables
@@ -1058,11 +1101,15 @@ function polls_archive() {
 				$template_answer = str_replace("%POLL_ANSWER_TEXT%", htmlspecialchars(strip_tags($polls_answer['answers'])), $template_answer);
 				$template_answer = str_replace("%POLL_ANSWER_VOTES%", number_format_i18n($polls_answer['votes']), $template_answer);
 				$template_answer = str_replace("%POLL_ANSWER_PERCENTAGE%", $poll_answer_percentage, $template_answer);
+				$template_answer = str_replace("%POLL_ANSWER_SVJ_PERCENTAGE%", $poll_answer_svj_percentage, $template_answer);
+				$template_answer = str_replace("%POLL_ANSWER_SVJ_PERCENTAGE_NORMALIZED%", $poll_answer_svj_percentage_normalized, $template_answer);
 				$template_answer = str_replace("%POLL_ANSWER_IMAGEWIDTH%", $poll_answer_imagewidth, $template_answer);
+				$template_answer = str_replace("%POLL_ANSWER_SVJ_IMAGEWIDTH%", $poll_answer_svj_imagewidth, $template_answer);
 				// Print Out Results Body Template
 				$pollsarchive_output_archive .= $template_answer;
 			} else {
 				// Results Body Variables
+				// replacing in template
 				$template_answer = removeslashes(get_option('poll_template_resultbody'));
 				$template_answer = str_replace("%POLL_ID%", $polls_question['id'], $template_answer);
 				$template_answer = str_replace("%POLL_ANSWER_ID%", $polls_answer['aid'], $template_answer);
@@ -1070,7 +1117,10 @@ function polls_archive() {
 				$template_answer = str_replace("%POLL_ANSWER_TEXT%", htmlspecialchars(strip_tags($polls_answer['answers'])), $template_answer);
 				$template_answer = str_replace("%POLL_ANSWER_VOTES%", number_format_i18n($polls_answer['votes']), $template_answer);
 				$template_answer = str_replace("%POLL_ANSWER_PERCENTAGE%", $poll_answer_percentage, $template_answer);
+				$template_answer = str_replace("%POLL_ANSWER_SVJ_PERCENTAGE%", $poll_answer_svj_percentage, $template_answer);
+				$template_answer = str_replace("%POLL_ANSWER_SVJ_PERCENTAGE_NORMALIZED%", $poll_answer_svj_percentage_normalized, $template_answer);
 				$template_answer = str_replace("%POLL_ANSWER_IMAGEWIDTH%", $poll_answer_imagewidth, $template_answer);
+				$template_answer = str_replace("%POLL_ANSWER_SVJ_IMAGEWIDTH%", $poll_answer_svj_imagewidth, $template_answer);
 				// Print Out Results Body Template
 				$pollsarchive_output_archive .= $template_answer;
 			}
@@ -1097,6 +1147,7 @@ function polls_archive() {
 		$template_footer = str_replace("%POLL_END_DATE%", $poll_end_date, $template_footer);
 		$template_footer = str_replace("%POLL_TOTALVOTES%", number_format_i18n($polls_question['totalvotes']), $template_footer);
 		$template_footer = str_replace("%POLL_TOTALVOTERS%", number_format_i18n($polls_question['totalvoters']), $template_footer);
+		$template_footer = str_replace("%POLL_TOTALVOTERS_SVJ_RATIO%", $poll_question_totalvoters_ratio, $template_footer);
 		$template_footer = str_replace("%POLL_MOST_ANSWER%", $poll_most_answer, $template_footer);
 		$template_footer = str_replace("%POLL_MOST_VOTES%", number_format_i18n($poll_most_votes), $template_footer);
 		$template_footer = str_replace("%POLL_MOST_PERCENTAGE%", $poll_most_percentage, $template_footer);
@@ -1114,6 +1165,7 @@ function polls_archive() {
 		$template_archive_footer = str_replace("%POLL_END_DATE%", $poll_end_date, $template_archive_footer);
 		$template_archive_footer = str_replace("%POLL_TOTALVOTES%", number_format_i18n($polls_question['totalvotes']), $template_archive_footer);
 		$template_archive_footer = str_replace("%POLL_TOTALVOTERS%", number_format_i18n($polls_question['totalvoters']), $template_archive_footer);
+		$template_archive_footer = str_replace("%POLL_TOTALVOTERS_SVJ_RATIO%", $poll_question_totalvoters_ratio, $template_archive_footer);
 		$template_archive_footer = str_replace("%POLL_MOST_ANSWER%", $poll_most_answer, $template_archive_footer);
 		$template_archive_footer = str_replace("%POLL_MOST_VOTES%", number_format_i18n($poll_most_votes), $template_archive_footer);
 		$template_archive_footer = str_replace("%POLL_MOST_PERCENTAGE%", $poll_most_percentage, $template_archive_footer);
