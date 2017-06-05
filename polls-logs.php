@@ -4,6 +4,7 @@ if( ! current_user_can( 'manage_polls' ) ) {
     die( 'Access Denied' );
 }
 
+include_once( 'svj-helpers.php' );
 
 ### Variables
 $max_records = 2000;
@@ -106,7 +107,7 @@ if( ! empty( $_POST['do'] ) ) {
     }
     $poll_ips = $wpdb->get_results("SELECT $wpdb->pollsip.* FROM $wpdb->pollsip WHERE pollip_qid = $poll_id $users_voted_for_sql $registered_sql $comment_sql $guest_sql $what_user_voted_sql $num_choices_sql ORDER BY $order_by");
 } else {
-    $poll_ips = $wpdb->get_results( $wpdb->prepare( "SELECT pollip_aid, pollip_ip, pollip_host, pollip_timestamp, pollip_user FROM $wpdb->pollsip WHERE pollip_qid = %d ORDER BY pollip_aid ASC, pollip_user ASC LIMIT %d", $poll_id, $max_records ) );
+    $poll_ips = $wpdb->get_results( $wpdb->prepare( "SELECT pollip_aid, pollip_ip, pollip_host, pollip_timestamp, pollip_user, pollip_userid FROM $wpdb->pollsip WHERE pollip_qid = %d ORDER BY pollip_aid ASC, pollip_user ASC LIMIT %d", $poll_id, $max_records ) );
 }
 ?>
 <?php if(!empty($text)) { echo '<!-- Last Action --><div id="message" class="updated fade">'.removeslashes($text).'</div>'; } else { echo '<div id="message" class="updated" style="display: none;"></div>'; } ?>
@@ -117,7 +118,8 @@ if( ! empty( $_POST['do'] ) ) {
         <?php printf(_n('There are a total of <strong>%s</strong> recorded vote for this poll.', 'There are a total of <strong>%s</strong> recorded votes for this poll.', $poll_totalrecorded, 'wp-polls'), number_format_i18n($poll_totalrecorded)); ?><br />
         <?php printf(_n('<strong>&raquo;</strong> <strong>%s</strong> vote is cast by registered users', '<strong>&raquo;</strong> <strong>%s</strong> votes are cast by registered users', $poll_registered, 'wp-polls'), number_format_i18n($poll_registered)); ?><br />
         <?php printf(_n('<strong>&raquo;</strong> <strong>%s</strong> vote is cast by comment authors', '<strong>&raquo;</strong> <strong>%s</strong> votes are cast by comment authors', $poll_comments, 'wp-polls'), number_format_i18n($poll_comments)); ?><br />
-        <?php printf(_n('<strong>&raquo;</strong> <strong>%s</strong> vote is cast by guests', '<strong>&raquo;</strong> <strong>%s</strong> votes are cast by guests', $poll_guest, 'wp-polls'), number_format_i18n($poll_guest)); ?>
+        <?php printf(_n('<strong>&raquo;</strong> <strong>%s</strong> vote is cast by guests', '<strong>&raquo;</strong> <strong>%s</strong> votes are cast by guests', $poll_guest, 'wp-polls'), number_format_i18n($poll_guest)); ?><br />
+        <?php printf(_n('<strong>&raquo;</strong> <strong>%s</strong> percent of owner ratios participated', '<strong>&raquo;</strong> <strong>%s</strong> percent of owner ratios participated', number_format_i18n(get_total_voters_ratio($poll_id), 2), 'wp-polls'), number_format_i18n(get_total_voters_ratio($poll_id), 2)); ?>
     </p>
 </div>
 <?php if($poll_totalrecorded > 0 && apply_filters( 'poll_log_show_log_filter', true )) { ?>
@@ -266,7 +268,7 @@ if( ! empty( $_POST['do'] ) ) {
                     echo '<p>'.sprintf(__('This default filter is limited to display only <strong>%s</strong> records.', 'wp-polls'), number_format_i18n($max_records)).'</p>';
                 }
                 echo '<table class="widefat">'."\n";
-                echo "<tr class=\"highlight\"><td colspan=\"4\">". $poll_question . "</td></tr>";
+                echo "<tr class=\"highlight\"><td colspan=\"5\">". $poll_question . " (" . number_format_i18n(get_total_voters_ratio($poll_id), 2) . "%)</td></tr>";
                 $k = 1;
                 $j = 0;
                 $poll_last_aid = -1;
@@ -293,12 +295,13 @@ if( ! empty( $_POST['do'] ) ) {
                         }
                         if($pollip_user != $temp_pollip_user) {
                             echo '<tr class="highlight">'."\n";
-                            echo "<td colspan=\"4\"><strong>".__('User', 'wp-polls')." ".number_format_i18n($k).": $pollip_user</strong></td>\n";
+                            echo "<td colspan=\"5\"><strong>".__('User', 'wp-polls')." ".number_format_i18n($k).": $pollip_user</strong></td>\n";
                             echo '</tr>';
                             $k++;
                         }
                         echo "<tr $style>\n";
                         echo "<td>{$pollip_answers[$pollip_aid]}</td>\n";
+						
                         echo "<td><a href=\"http://ipinfo.io/$pollip_ip\" title=\"$pollip_ip\">$pollip_ip</a></td>\n";
                         echo "<td>$pollip_host</td>\n";
                         echo "<td>$pollip_date</td>\n";
@@ -316,10 +319,17 @@ if( ! empty( $_POST['do'] ) ) {
                         $pollip_date = mysql2date(sprintf(__('%s @ %s', 'wp-polls'), get_option('date_format'), get_option('time_format')), gmdate('Y-m-d H:i:s', $poll_ip->pollip_timestamp));
                         if($pollip_aid != $poll_last_aid) {
                             if($pollip_aid == 0) {
-                                echo "<tr class=\"highlight\">\n<td colspan=\"4\"><strong>$pollip_answers[$pollip_aid]</strong></td>\n</tr>\n";
+                                echo "<tr class=\"highlight\">\n<td colspan=\"5\"><strong>$pollip_answers[$pollip_aid]</strong></td>\n</tr>\n";
                             } else {
                                 $polla_answer = ! empty( $pollip_answers[$pollip_aid] ) ? $pollip_answers[ $pollip_aid ] : $poll_answers_data[ $k-1 ]->polla_answers;
-                                echo "<tr class=\"highlight\">\n<td colspan=\"4\"><strong>".__('Answer', 'wp-polls')." ".number_format_i18n($k).": " . $polla_answer . "</strong></td>\n</tr>\n";
+                                $answer_percentage = get_answer_svj_percentage((int)$poll_id, (int)$pollip_aid);
+								$total_percentage = get_total_voters_ratio($poll_id);
+								$answer_percentage_normalized = 0;
+								if ($total_percentage != 0) {
+									$answer_percentage_normalized = round(100 * $answer_percentage / $total_percentage);
+								}
+								
+								echo "<tr class=\"highlight\">\n<td colspan=\"5\"><strong>".__('Answer', 'wp-polls')." ".number_format_i18n($k).": " . $polla_answer . "</strong> (" . number_format_i18n($answer_percentage_normalized) . "% / " . number_format_i18n($answer_percentage, 2) . "%)</td>\n</tr>\n";
                                 $k++;
                             }
                             echo "<tr class=\"thead\">\n";
@@ -327,6 +337,7 @@ if( ! empty( $_POST['do'] ) ) {
                             echo "<th>".__('User', 'wp-polls')."</th>\n";
                             echo "<th>".__('IP/Host', 'wp-polls')."</th>\n";
                             echo "<th>".__('Date', 'wp-polls')."</th>\n";
+							echo "<th>".__('Ratio', 'wp-polls')."</th>\n";
                             echo "</tr>\n";
                             $i = 1;
                         }
@@ -340,6 +351,7 @@ if( ! empty( $_POST['do'] ) ) {
                         echo "<td>$pollip_user</td>\n";
                         echo "<td><a href=\"http://ipinfo.io/$pollip_ip\" title=\"$pollip_ip\">$pollip_ip</a> / $pollip_host</td>\n";
                         echo "<td>$pollip_date</td>\n";
+						echo "<td>". number_format_i18n(get_total_user_ratio((int)$poll_ip->pollip_userid),2) ."%	</td>\n";
                         echo "</tr>\n";
                         $poll_last_aid = $pollip_aid;
                         $i++;
@@ -347,7 +359,7 @@ if( ! empty( $_POST['do'] ) ) {
                     }
                 }
                 echo "<tr class=\"highlight\">\n";
-                echo "<td colspan=\"4\">".sprintf(__('Total number of records that matches this filter: <strong>%s</strong>', 'wp-polls'), number_format_i18n($j))."</td>";
+                echo "<td colspan=\"5\">".sprintf(__('Total number of records that matches this filter: <strong>%s</strong>', 'wp-polls'), number_format_i18n($j))."</td>";
                 echo "</tr>\n";
                 echo '</table>'."\n";
             }

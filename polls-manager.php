@@ -11,6 +11,8 @@ $mode       = ( isset( $_GET['mode'] ) ? sanitize_key( trim( $_GET['mode'] ) ) :
 $poll_id    = ( isset( $_GET['id'] ) ? (int) sanitize_key( $_GET['id'] ) : 0 );
 $poll_aid   = ( isset( $_GET['aid'] ) ? (int) sanitize_key( $_GET['aid'] ) : 0 );
 
+include_once( 'svj-helpers.php' );
+
 ### Form Processing
 if(!empty($_POST['do'])) {
     // Decide What To Do
@@ -372,6 +374,7 @@ switch($mode) {
                         <th><?php _e('ID', 'wp-polls'); ?></th>
                         <th><?php _e('Question', 'wp-polls'); ?></th>
                         <th><?php _e('Total Voters', 'wp-polls'); ?></th>
+						<th><?php _e('Total Attendance', 'wp-polls'); ?></th>
                         <th><?php _e('Start Date/Time', 'wp-polls'); ?></th>
                         <th><?php _e('End Date/Time', 'wp-polls'); ?></th>
                         <th><?php _e('Status', 'wp-polls'); ?></th>
@@ -396,6 +399,9 @@ switch($mode) {
                                 $poll_date = mysql2date(sprintf(__('%s @ %s', 'wp-polls'), get_option('date_format'), get_option('time_format')), gmdate('Y-m-d H:i:s', $poll->pollq_timestamp));
                                 $poll_totalvotes = (int) $poll->pollq_totalvotes;
                                 $poll_totalvoters = (int) $poll->pollq_totalvoters;
+								// krezac start calculate total attendance by ratio
+								$poll_total_ratio = get_total_voters_ratio($poll_id);;
+								// krezac end
                                 $poll_active = (int) $poll->pollq_active;
                                 $poll_expiry = trim($poll->pollq_expiry);
                                 if(empty($poll_expiry)) {
@@ -435,6 +441,7 @@ switch($mode) {
                                 }
                                 echo wp_kses_post( $poll_question )."</td>\n";
                                 echo '<td>'.number_format_i18n($poll_totalvoters)."</td>\n";
+                                echo '<td>'.number_format_i18n($poll_total_ratio, 2)."%</td>\n";
                                 echo "<td>$poll_date</td>\n";
                                 echo "<td>$poll_expiry_text</td>\n";
                                 echo '<td>';
