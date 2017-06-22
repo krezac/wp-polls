@@ -57,7 +57,11 @@ function poll_menu() {
 	add_submenu_page( 'wp-polls/polls-manager.php', __( 'Add Poll', 'wp-polls'), __( 'Add Poll', 'wp-polls' ), 'manage_polls', 'wp-polls/polls-add.php' );
 	add_submenu_page( 'wp-polls/polls-manager.php', __( 'Poll Options', 'wp-polls'), __( 'Poll Options', 'wp-polls' ), 'manage_polls', 'wp-polls/polls-options.php' );
 	add_submenu_page( 'wp-polls/polls-manager.php', __( 'Poll Templates', 'wp-polls'), __( 'Poll Templates', 'wp-polls' ), 'manage_polls', 'wp-polls/polls-templates.php' );
-	add_submenu_page( 'wp-polls/polls-manager.php', __( 'SVJ Review Ownership', 'wp-polls' ), __( 'SVJ Review Ownership', 'wp-polls' ), 'manage_polls', 'wp-polls/svj-ownership-review.php' );
+	add_submenu_page( 'wp-polls/polls-manager.php', __( 'SVJ Review Summary', 'wp-polls' ), __( 'SVJ Review Summary', 'wp-polls' ), 'manage_polls', 'wp-polls/svj-review-summary.php' );
+	add_submenu_page( 'wp-polls/polls-manager.php', __( 'SVJ Review By Unit', 'wp-polls' ), __( 'SVJ Review By Unit', 'wp-polls' ), 'manage_polls', 'wp-polls/svj-review-by-unit.php' );
+	add_submenu_page( 'wp-polls/polls-manager.php', __( 'SVJ Review By Owner', 'wp-polls' ), __( 'SVJ Review By Owner', 'wp-polls' ), 'manage_polls', 'wp-polls/svj-review-by-owner.php' );
+	add_submenu_page( 'wp-polls/polls-manager.php', __( 'SVJ Review No Owner', 'wp-polls' ), __( 'SVJ Review No Owner', 'wp-polls' ), 'manage_polls', 'wp-polls/svj-review-no-owner.php' );
+	add_submenu_page( 'wp-polls/polls-manager.php', __( 'SVJ Review No Unit', 'wp-polls' ), __( 'SVJ Review No Unit', 'wp-polls' ), 'manage_polls', 'wp-polls/svj-review-no-unit.php' );
 
 }
 
